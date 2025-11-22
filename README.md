@@ -1,20 +1,53 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Chat Portfolio
 
-# Run and deploy your AI Studio app
+A modern, server-side rendered portfolio website built with Django, featuring a Generative AI chatbot powered by Google Gemini.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1hcKfPwD3-wPuZFXKZ88v0RonUPps2H_x
+- **Portfolio Showcase**: Display projects and blog posts with detailed views.
+- **AI Assistant**: A built-in chatbot that answers questions about the portfolio owner using context-aware AI.
+- **Modern UI**: Styled with Tailwind CSS and Lucide Icons.
+- **Streaming Chat**: Real-time typewriter effect for AI responses.
 
-## Run Locally
+## Setup
 
-**Prerequisites:**  Node.js
+1.  **Clone the repository**:
+    ```bash
+    git clone <repository-url>
+    cd chat_portfolio
+    ```
 
+2.  **Install dependencies**:
+    ```bash
+    pip install django google-genai
+    ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+3.  **Environment Configuration**:
+    Create a `.env` file or export the `API_KEY` in your shell. This key is required for the chatbot to function.
+    ```bash
+    export API_KEY="your_google_genai_api_key"
+    ```
+
+4.  **Run Migrations**:
+    ```bash
+    python manage.py migrate
+    ```
+
+5.  **Start the Server**:
+    ```bash
+    python manage.py runserver
+    ```
+
+6.  **Visit**: `http://127.0.0.1:8000`
+
+## Contribution
+
+We welcome contributions! Please read the documentation in the `docs/` folder for architecture details.
+
+- **Architecture**: `docs/architecture.md`
+- **Portfolio Pages**: `docs/portfolio_page.md`
+- **Chatbot Internals**: `docs/chatbot.md`
+
+1.  Fork the repo.
+2.  Create a feature branch.
+3.  Submit a Pull Request.

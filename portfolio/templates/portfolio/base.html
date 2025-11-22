@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Alex Dev - Portfolio{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        indigo: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                            950: '#1e1b4b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for chat */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="{% url 'home' %}" class="flex items-center gap-2 group">
+                    <div class="bg-indigo-600 text-white p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
+                        <i data-lucide="code-2" width="20" height="20"></i>
+                    </div>
+                    <span class="font-bold text-slate-800 text-lg tracking-tight">{{ portfolio_context.owner }}</span>
+                </a>
+
+                <div class="flex gap-8">
+                    <a href="{% url 'home' %}" class="text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'home' %}text-indigo-600{% else %}text-slate-600 hover:text-indigo-600{% endif %}">Home</a>
+                    <a href="{% url 'projects' %}" class="text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'projects' or request.resolver_match.url_name == 'project_detail' %}text-indigo-600{% else %}text-slate-600 hover:text-indigo-600{% endif %}">Projects</a>
+                    <a href="{% url 'blog' %}" class="text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'blog' or request.resolver_match.url_name == 'blog_detail' %}text-indigo-600{% else %}text-slate-600 hover:text-indigo-600{% endif %}">Blog</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-12 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="text-center md:text-left">
+                    <p class="text-slate-100 font-semibold text-lg mb-2">{{ portfolio_context.owner }}</p>
+                    <p class="text-sm max-w-xs">{{ portfolio_context.bio }}</p>
+                </div>
+                <div class="flex gap-6">
+                    <a href="https://{{ portfolio_context.contact.github }}" class="hover:text-white transition-colors"><i data-lucide="github" width="20" height="20"></i></a>
+                    <a href="https://{{ portfolio_context.contact.linkedin }}" class="hover:text-white transition-colors"><i data-lucide="linkedin" width="20" height="20"></i></a>
+                    <a href="mailto:{{ portfolio_context.contact.email }}" class="hover:text-white transition-colors"><i data-lucide="mail" width="20" height="20"></i></a>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 mt-8 pt-8 text-center text-xs">
+                <p>&copy; {% now "Y" %} {{ portfolio_context.owner }}. All rights reserved. Built with Django, Tailwind & Gemini.</p>
+            </div>
+        </div>
+    </footer>
+
+    {% include "chatbot/chat_widget.html" %}
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
