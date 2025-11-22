@@ -1,113 +1,76 @@
 from django.test import TestCase, Client
+from django.urls import reverse
+from unittest.mock import patch, MagicMock
 import json
 
+class ChatbotTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse('chat_message')
 
-class DummyChunkText:
-	def __init__(self, text):
-		self.text = text
+    def test_chat_message_get_method_not_allowed(self):
+        """Test that GET requests are not allowed."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
 
+    def test_chat_message_no_body(self):
+        """Test that request with no body returns error."""
+        response = self.client.post(self.url, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
 
-class DummyChunkDelta:
-	def __init__(self, delta):
-		self.delta = delta
+    def test_chat_message_invalid_json(self):
+        """Test that invalid JSON returns error."""
+        response = self.client.post(self.url, data="invalid json", content_type='application/json')
+        self.assertEqual(response.status_code, 400)
 
+    def test_chat_message_missing_message_field(self):
+        """Test that JSON without 'message' field returns error."""
+        response = self.client.post(self.url, data=json.dumps({'other': 'field'}), content_type='application/json')
+        self.assertEqual(response.status_code, 400)
 
-class DummyMessage:
-	def __init__(self, content):
-		self.content = content
+    @patch('chatbot.views.client')
+    def test_chat_message_success(self, mock_client):
+        """Test successful chat message processing."""
+        # Mock the chat session and send_message_stream
+        mock_chat = MagicMock()
+        mock_client.chats.create.return_value = mock_chat
 
+        # Create a mock response chunk
+        mock_chunk = MagicMock()
+        mock_chunk.text = "Hello there!"
 
-class DummyChunkMessage:
-	def __init__(self, message):
-		self.message = message
+        # send_message_stream returns an iterator
+        mock_chat.send_message_stream.return_value = [mock_chunk]
 
+        response = self.client.post(
+            self.url,
+            data=json.dumps({'message': 'Hello'}),
+            content_type='application/json'
+        )
 
-class ChatStreamingTests(TestCase):
-	def setUp(self):
-		self.client = Client()
+        self.assertEqual(response.status_code, 200)
+        # The response is a StreamingHttpResponse, so we consume it to check content
+        content = b"".join(response.streaming_content).decode('utf-8')
 
-	def test_streaming_handles_various_chunk_shapes(self, monkeypatch=None):
-		# Create a fake client whose chat.create().send_message_stream yields
-		# different shaped chunks
-		chunks = [
-			DummyChunkText('Hello'),
-			DummyChunkDelta({'content': ' world'}),
-			DummyChunkMessage(DummyMessage('!')),
-		]
+        # Check for the expected SSE format
+        expected_data = json.dumps({'text': 'Hello there!'})
+        self.assertIn(f"data: {expected_data}\n\n", content)
+        self.assertIn("data: [DONE]\n\n", content)
 
-		class FakeChatObj:
-			def __init__(self, chunks):
-				self._chunks = chunks
+    @patch('chatbot.views.client')
+    def test_chat_message_api_error(self, mock_client):
+        """Test handling of API errors."""
+        mock_client.chats.create.side_effect = Exception("API Error")
 
-			def send_message_stream(self, message):
-				for c in self._chunks:
-					yield c
+        response = self.client.post(
+            self.url,
+            data=json.dumps({'message': 'Hello'}),
+            content_type='application/json'
+        )
 
-		class FakeChats:
-			def __init__(self, chunks):
-				self._chunks = chunks
+        self.assertEqual(response.status_code, 200)
+        content = b"".join(response.streaming_content).decode('utf-8')
 
-			def create(self, model=None, config=None):
-				return FakeChatObj(self._chunks)
-
-		class FakeClient:
-			def __init__(self, chunks):
-				self.chats = FakeChats(chunks)
-
-		# monkeypatch the client used by the view
-		import chatbot.views as views
-		views.client = FakeClient(chunks)
-
-		resp = self.client.post('/api/chat/message/', json.dumps({'message': 'hi'}), content_type='application/json')
-
-		# Streaming content is an iterable of bytes; join them
-		content = b''.join(list(resp.streaming_content))
-		text = content.decode('utf-8')
-
-		# Expect that the SSE data events included the concatenated text 'Hello world!'
-		self.assertIn('Hello', text)
-		self.assertIn('world', text)
-		self.assertIn('!', text)
-
-	def test_missing_api_key_produces_error_text(self):
-		# Ensure that if client is None (no API key) we get an error text chunk
-		import chatbot.views as views
-		views.client = None
-
-		resp = self.client.post('/api/chat/message/', json.dumps({'message': 'hi'}), content_type='application/json')
-		content = b''.join(list(resp.streaming_content))
-		text = content.decode('utf-8')
-
-		# We expect a friendly configuration message instead of an AttributeError
-		self.assertIn('Server configuration error: API_KEY not set on server', text)
-		self.assertIn('[DONE]', text)
-
-	def test_load_dotenv_sets_env_var(self):
-		# Verify we can load a .env file and make API_KEY visible via os.environ
-		from dotenv import load_dotenv
-		import os
-		import tempfile
-
-		# Create a temp env file and load it
-		tmp = tempfile.NamedTemporaryFile('w', delete=False)
-		try:
-			tmp.write('API_KEY=test-dotenv-key-xyz')
-			tmp.flush()
-			tmp.close()
-
-			# Ensure it's not present already
-			old = os.environ.pop('API_KEY', None)
-
-			try:
-				load_dotenv(tmp.name)
-				self.assertEqual(os.environ.get('API_KEY'), 'test-dotenv-key-xyz')
-			finally:
-				# restore previous env var (if any) so tests don't leak
-				if old is not None:
-					os.environ['API_KEY'] = old
-		finally:
-			try:
-				import os as _os
-				_os.unlink(tmp.name)
-			except Exception:
-				pass
+        # Check that the error is sent back in the stream
+        expected_error = json.dumps({'error': 'API Error'})
+        self.assertIn(f"data: {expected_error}\n\n", content)

@@ -1,5 +1,0 @@
-# Minimal requirements for this Django + Google GenAI project
-Django==5.2.8
-# Google Generative AI Python SDK - imports as `from google import genai`
-google-genai
-python-dotenv

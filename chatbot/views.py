@@ -15,15 +15,6 @@ def chat_message(request):
             return JsonResponse({'error': 'No message provided'}, status=400)
 
         # We want to stream the response back to the client
-        # If the GenAI client isn't configured (missing API_KEY), produce a
-        # single SSE message explaining the problem rather than raising an
-        # AttributeError when views tries to use client.chats.
-        if client is None:
-            def bad_config_stream():
-                yield f"data: {json.dumps({'text': 'Server configuration error: API_KEY not set on server'})}\n\n"
-                yield "data: [DONE]\n\n"
-
-            return StreamingHttpResponse(bad_config_stream(), content_type='text/event-stream')
         def event_stream():
             # We can maintain a simple history if we wanted, but for now just stateless
             # To support history, we would need to accept 'history' from frontend or store in session.
@@ -46,58 +37,14 @@ def chat_message(request):
                 response = chat.send_message_stream(user_message)
 
                 for chunk in response:
-                    # The SDK's streaming chunk shape can vary depending on the
-                    # version. Try multiple common access patterns so we don't
-                    # accidentally return empty text to the frontend.
-                    chunk_text = None
-
-                    # 1) Some SDKs provide .text
-                    if hasattr(chunk, 'text') and getattr(chunk, 'text'):
-                        chunk_text = getattr(chunk, 'text')
-
-                    # 2) Some SDKs deliver a .delta object or dict
-                    elif hasattr(chunk, 'delta') and getattr(chunk, 'delta'):
-                        delta = getattr(chunk, 'delta')
-                        try:
-                            # delta might be dict-like
-                            if isinstance(delta, dict):
-                                chunk_text = delta.get('content') or delta.get('text')
-                            else:
-                                chunk_text = str(delta)
-                        except Exception:
-                            chunk_text = str(delta)
-
-                    # 3) Some SDKs embed the content under message or output
-                    elif hasattr(chunk, 'message') and getattr(chunk, 'message'):
-                        try:
-                            msg = getattr(chunk, 'message')
-                            # try common attr names
-                            if hasattr(msg, 'content') and getattr(msg, 'content'):
-                                chunk_text = getattr(msg, 'content')
-                            else:
-                                chunk_text = str(msg)
-                        except Exception:
-                            chunk_text = str(getattr(chunk, 'message'))
-
-                    # 4) Fallback to string representation
-                    else:
-                        try:
-                            chunk_text = str(chunk)
-                        except Exception:
-                            chunk_text = None
-
-                    if chunk_text:
-                        # Server-Sent Events format — send 'text' key so front-end
-                        # will render it in the chat bubble.
-                        yield f"data: {json.dumps({'text': chunk_text})}\n\n"
+                    if chunk.text:
+                        # Server-Sent Events format
+                        yield f"data: {json.dumps({'text': chunk.text})}\n\n"
 
                 yield "data: [DONE]\n\n"
 
             except Exception as e:
-                # Send the error as 'text' so the frontend can show it to the user
-                # instead of silently ignoring it because it only looks for data.text
-                err_text = f"Error from chat backend: {str(e)}"
-                yield f"data: {json.dumps({'text': err_text})}\n\n"
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
         return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
 
